@@ -1,6 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:shoppinglist/data/categories.dart';
+import 'package:shoppinglist/data/dummy_items.dart';
 import 'package:shoppinglist/models/grocery_item.dart';
 import 'package:shoppinglist/widgets/new_item.dart';
+import 'package:http/http.dart' as http;
 
 class GroceryList extends StatefulWidget {
   const GroceryList({super.key});
@@ -10,18 +15,53 @@ class GroceryList extends StatefulWidget {
 }
 
 class _GroceryListState extends State<GroceryList> {
-  final List<GroceryItem> _groceryItems = [];
+   List<GroceryItem> _groceryItems = [];
 
-  void _addItem() async {
-    final newItem = await Navigator.of(
-      context,
-    ).push<GroceryItem>(MaterialPageRoute(builder: (ctx) => NewItem()));
-    if (newItem == null) {
-      return;
+  @override
+  void initState() {
+    super.initState();
+    _loadItems();
+  }
+
+  void _loadItems() async {
+    final url = Uri.https(
+      'flutter-prep-155be-default-rtdb.firebaseio.com',
+      'shopping-list.json',
+    );
+
+    final response = await http.get(url);
+    final Map<String,dynamic > listData = json.decode(
+      response.body,
+    );
+    final List<GroceryItem> loadedItemsList = [];
+    for (final item in listData.entries) {
+      final category =
+          categories.entries
+              .firstWhere(
+                (element) => element.value.title == item.value['category'],
+              )
+              .value;
+      loadedItemsList.add(
+        GroceryItem(
+          category: category,
+          id: item.key,
+          name: item.value['category'],
+          quantity: item.value['quantity'],
+        ),
+      );
     }
     setState(() {
-      _groceryItems.add(newItem);
+      
+    _groceryItems = loadedItemsList;
     });
+  }
+
+  void _addItem() async {
+    await Navigator.of(
+      context,
+    ).push<GroceryItem>(MaterialPageRoute(builder: (ctx) => NewItem()));
+
+    _loadItems();
   }
 
   void _removeItem(GroceryItem item) {
@@ -36,12 +76,10 @@ class _GroceryListState extends State<GroceryList> {
       itemCount: _groceryItems.length,
       itemBuilder:
           (ctx, index) => Dismissible(
-            background: Container(color: Colors.red,
-             padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: const Icon(
-          Icons.delete,
-          color: Colors.white,
-          size: 30,),
+            background: Container(
+              color: Colors.red,
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: const Icon(Icons.delete, color: Colors.white, size: 30),
             ),
             onDismissed: (direction) {
               _removeItem(_groceryItems[index]);
