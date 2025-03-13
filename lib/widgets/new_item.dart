@@ -5,6 +5,7 @@ import 'package:shoppinglist/data/categories.dart';
 import 'package:shoppinglist/models/category.dart';
 // import 'package:shoppinglist/models/grocery_item.dart';
 import 'package:http/http.dart' as http;
+import 'package:shoppinglist/models/grocery_item.dart';
 
 class NewItem extends StatefulWidget {
   const NewItem({super.key});
@@ -19,10 +20,14 @@ class _NewItemState extends State<NewItem> {
   var _enteredName = '';
   var _enteredQuantity = 1;
   var _selectedCategory = categories[Categories.vegetables]!;
+  var _isSending = false;
 
   void _saveItem() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
+      setState(() {
+        _isSending = true;
+      });
       final url = Uri.https(
         'flutter-prep-155be-default-rtdb.firebaseio.com',
         'shopping-list.json',
@@ -37,14 +42,20 @@ class _NewItemState extends State<NewItem> {
         }),
       );
 
-      print(response.body);
-      print(response.statusCode);
+      final resData = json.decode(response.body);
 
       if (!context.mounted) {
         return;
       }
 
-      Navigator.of(context).pop();
+      Navigator.of(context).pop(
+        GroceryItem(
+          category: _selectedCategory,
+          id: resData['name'],
+          name: _enteredName,
+          quantity: _enteredQuantity,
+        ),
+      );
     }
   }
 
@@ -136,16 +147,20 @@ class _NewItemState extends State<NewItem> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton(
-                    onPressed: () {
+                    onPressed: _isSending ? null : () {
                       _formKey.currentState!.reset();
                     },
                     child: const Text('Reset'),
                   ),
                   ElevatedButton(
-                    onPressed: () {
+                    onPressed: _isSending ? null : () {
                       _saveItem();
                     },
-                    child: const Text('Add item'),
+                    child: _isSending ? SizedBox(
+                        height: 16,
+                        width: 16,
+                        child: CircularProgressIndicator(),
+                    ) : const Text('Add item'),
                   ),
                 ],
               ),
